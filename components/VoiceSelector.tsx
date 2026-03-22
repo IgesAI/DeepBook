@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Mic, Play, Square, Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Voice {
@@ -42,9 +41,7 @@ export function VoiceSelector({ value, onChange }: VoiceSelectorProps) {
       return;
     }
 
-    if (audioRef.current) {
-      audioRef.current.pause();
-    }
+    if (audioRef.current) audioRef.current.pause();
     const audio = new Audio(voice.preview_url);
     audioRef.current = audio;
     audio.onended = () => setPlaying(null);
@@ -54,8 +51,10 @@ export function VoiceSelector({ value, onChange }: VoiceSelectorProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 text-white/40 text-sm">
-        <Loader2 className="w-4 h-4 animate-spin" />
+      <div className="flex items-center gap-2 text-on-surface-variant/50 text-sm font-label py-2">
+        <span className="material-symbols-outlined text-base animate-spin" style={{ animationDuration: "1s" }}>
+          progress_activity
+        </span>
         Loading voices...
       </div>
     );
@@ -66,8 +65,7 @@ export function VoiceSelector({ value, onChange }: VoiceSelectorProps) {
       {voices.map((voice) => {
         const isSelected = value === voice.voice_id;
         const isPlaying = playing === voice.voice_id;
-        const description =
-          voice.labels?.description || voice.labels?.use_case || "Narrator";
+        const description = voice.labels?.description || voice.labels?.use_case || "Narrator";
         const accent = voice.labels?.accent || "";
 
         return (
@@ -78,47 +76,45 @@ export function VoiceSelector({ value, onChange }: VoiceSelectorProps) {
             onClick={() => onChange(voice.voice_id, voice.name)}
             onKeyDown={(e) => e.key === "Enter" && onChange(voice.voice_id, voice.name)}
             className={cn(
-              "relative flex items-start gap-3 p-3 rounded-xl border text-left transition-all duration-150 cursor-pointer",
+              "relative flex items-start gap-3 p-3 rounded-2xl border text-left transition-all duration-200 cursor-pointer",
               isSelected
-                ? "bg-amber-500/10 border-amber-500/40 text-white"
-                : "bg-white/[0.03] border-white/[0.07] text-white/70 hover:border-white/15 hover:bg-white/[0.05] hover:text-white"
+                ? "bg-primary/10 border-primary/30 shadow-[0_0_20px_rgba(255,185,95,0.08)]"
+                : "glass-card border-0 hover:ring-1 hover:ring-white/15"
             )}
           >
             <div
               className={cn(
-                "mt-0.5 flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-lg transition-colors",
-                isSelected
-                  ? "bg-amber-500/20 text-amber-400"
-                  : "bg-white/10 text-white/40"
+                "mt-0.5 flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-xl transition-colors",
+                isSelected ? "bg-primary/20 text-primary" : "bg-white/5 text-on-surface-variant/50"
               )}
             >
-              <Mic className="w-3.5 h-3.5" />
+              <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>mic</span>
             </div>
+
             <div className="min-w-0 flex-1">
-              <div className="font-medium text-sm truncate">{voice.name}</div>
-              <div className="text-xs text-white/40 capitalize truncate">
+              <div className="font-label font-medium text-sm text-on-surface truncate">{voice.name}</div>
+              <div className="text-xs text-on-surface-variant/50 capitalize truncate">
                 {[description, accent].filter(Boolean).join(" · ")}
               </div>
             </div>
 
-            {/* Preview & check — use a real button here since no nesting issue with div parent */}
             <div className="flex-shrink-0 flex items-center gap-1">
               {voice.preview_url && (
                 <button
                   type="button"
                   onClick={(e) => previewVoice(voice, e)}
-                  className="text-white/30 hover:text-white/70 transition-colors"
-                  title="Preview voice"
+                  className="text-on-surface-variant/30 hover:text-primary transition-colors p-0.5"
+                  title={isPlaying ? "Stop preview" : "Preview voice"}
                 >
-                  {isPlaying ? (
-                    <Square className="w-3 h-3" />
-                  ) : (
-                    <Play className="w-3 h-3" />
-                  )}
+                  <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>
+                    {isPlaying ? "stop" : "play_circle"}
+                  </span>
                 </button>
               )}
               {isSelected && (
-                <Check className="w-3.5 h-3.5 text-amber-400" />
+                <span className="material-symbols-outlined text-primary" style={{ fontSize: "14px", fontVariationSettings: "'FILL' 1" }}>
+                  check_circle
+                </span>
               )}
             </div>
           </div>

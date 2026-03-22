@@ -7,34 +7,52 @@ export const metadata: Metadata = { title: "Create Audiobook" };
 export default function CreatePage() {
   return (
     <div className="min-h-screen">
-      <Nav />
+      <Nav active="create" />
 
-      {/* Background glow */}
+      {/* Ambient glow */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-amber-500/[0.04] rounded-full blur-[100px]" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-primary/[0.04] rounded-full blur-[120px]" />
       </div>
 
-      <main className="relative z-10 pt-20 px-6 pb-16 flex flex-col items-center">
+      <main className="relative z-10 pt-20 lg:pl-64 px-6 pb-24 lg:pb-10 flex flex-col items-center">
         <div className="w-full max-w-2xl mt-8">
+
+          {/* Header */}
           <div className="text-center mb-10">
-            <h1 className="text-3xl font-bold text-white tracking-tight mb-2">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-[1.25rem] bg-primary/10 ring-1 ring-primary/20 mb-5">
+              <span className="material-symbols-outlined text-primary text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                auto_stories
+              </span>
+            </div>
+            <h1 className="font-headline font-bold text-3xl text-on-surface tracking-tight mb-2">
               Create an Audiobook
             </h1>
-            <p className="text-white/40 text-sm">
-              Enter any topic. AI will research, write, and narrate your book.
+            <p className="font-label text-on-surface-variant/50 text-sm">
+              Enter any topic. We research, write, and narrate it for you.
             </p>
           </div>
 
-          <div className="rounded-2xl bg-white/[0.025] border border-white/[0.07] p-6 md:p-8">
+          {/* Form card */}
+          <div className="glass-card rounded-[1.5rem] p-6 md:p-8">
             <CreateForm />
           </div>
 
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-white/25">
-            <span>Research takes 5–15 minutes</span>
-            <span>·</span>
-            <span>Audio generation: ~2 min per chapter</span>
-            <span>·</span>
-            <span>Works best with specific topics</span>
+          {/* Info hints */}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs font-label text-on-surface-variant/25">
+            <span className="flex items-center gap-1.5">
+              <span className="material-symbols-outlined" style={{ fontSize: "12px" }}>schedule</span>
+              Research takes 5–15 minutes
+            </span>
+            <span className="text-on-surface-variant/15">·</span>
+            <span className="flex items-center gap-1.5">
+              <span className="material-symbols-outlined" style={{ fontSize: "12px" }}>mic</span>
+              ~2 min audio per chapter
+            </span>
+            <span className="text-on-surface-variant/15">·</span>
+            <span className="flex items-center gap-1.5">
+              <span className="material-symbols-outlined" style={{ fontSize: "12px" }}>download</span>
+              Download as MP3
+            </span>
           </div>
         </div>
       </main>

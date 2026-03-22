@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { BookOpen } from "lucide-react";
 
 interface Chapter {
   id: string;
@@ -16,11 +15,7 @@ interface ChapterListProps {
   onSelect: (index: number) => void;
 }
 
-export function ChapterList({
-  chapters,
-  currentIndex,
-  onSelect,
-}: ChapterListProps) {
+export function ChapterList({ chapters, currentIndex, onSelect }: ChapterListProps) {
   return (
     <div className="space-y-0.5">
       {chapters.map((chapter, i) => {
@@ -30,23 +25,25 @@ export function ChapterList({
             key={chapter.id}
             onClick={() => onSelect(i)}
             className={cn(
-              "w-full flex items-start gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 group",
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-left transition-all duration-200 group",
               isActive
-                ? "bg-amber-500/10 border border-amber-500/20"
-                : "hover:bg-white/[0.04] border border-transparent"
+                ? "bg-primary/10 ring-1 ring-primary/20"
+                : "hover:bg-white/5 ring-1 ring-transparent"
             )}
           >
-            {/* Chapter number indicator */}
+            {/* Number / active indicator */}
             <div
               className={cn(
-                "flex-shrink-0 mt-0.5 flex items-center justify-center w-5 h-5 rounded-md text-[10px] font-bold transition-colors",
+                "flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-lg text-[10px] font-label font-bold transition-all",
                 isActive
-                  ? "bg-amber-500/20 text-amber-400"
-                  : "bg-white/5 text-white/30 group-hover:text-white/50"
+                  ? "bg-primary/20 text-primary"
+                  : "bg-surface-container-highest text-on-surface-variant/40 group-hover:text-on-surface-variant"
               )}
             >
               {isActive ? (
-                <BookOpen className="w-2.5 h-2.5" />
+                <span className="material-symbols-outlined" style={{ fontSize: "12px", fontVariationSettings: "'FILL' 1" }}>
+                  graphic_eq
+                </span>
               ) : (
                 chapter.number
               )}
@@ -54,10 +51,10 @@ export function ChapterList({
 
             <span
               className={cn(
-                "text-sm leading-snug transition-colors",
+                "text-sm font-label leading-snug transition-colors flex-1",
                 isActive
-                  ? "text-white font-medium"
-                  : "text-white/50 group-hover:text-white/70"
+                  ? "text-primary font-medium"
+                  : "text-on-surface-variant/60 group-hover:text-on-surface-variant"
               )}
             >
               {chapter.title}

@@ -27,11 +27,11 @@ async function generateChunk(
 ): Promise<Buffer> {
   const body: Record<string, unknown> = {
     text,
-    model_id: "eleven_multilingual_v2",
+    model_id: "eleven_v3",
     voice_settings: {
       stability: 0.45,
       similarity_boost: 0.80,
-      style: 0.25,
+      style: 0.35,
       use_speaker_boost: true,
     },
     output_format: "mp3_44100_128",

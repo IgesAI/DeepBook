@@ -1,18 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import {
-  Play,
-  Pause,
-  SkipBack,
-  SkipForward,
-  Volume2,
-  VolumeX,
-  Download,
-} from "lucide-react";
 import { formatDuration } from "@/lib/utils";
-import { Progress } from "./ui/progress";
-import { cn } from "@/lib/utils";
 
 interface Chapter {
   id: string;
@@ -28,11 +17,7 @@ interface AudioPlayerProps {
   onChapterChange?: (index: number) => void;
 }
 
-export function AudioPlayer({
-  chapters,
-  initialChapter = 0,
-  onChapterChange,
-}: AudioPlayerProps) {
+export function AudioPlayer({ chapters, initialChapter = 0, onChapterChange }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [currentIndex, setCurrentIndex] = useState(initialChapter);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -63,7 +48,6 @@ export function AudioPlayer({
     const onEnded = () => {
       if (currentIndex < chapters.length - 1) {
         goToChapter(currentIndex + 1);
-        // Auto-play next chapter
         setTimeout(() => audioRef.current?.play(), 100);
       } else {
         setIsPlaying(false);
@@ -98,11 +82,8 @@ export function AudioPlayer({
   function togglePlay() {
     const audio = audioRef.current;
     if (!audio) return;
-    if (isPlaying) {
-      audio.pause();
-    } else {
-      audio.play();
-    }
+    if (isPlaying) audio.pause();
+    else audio.play();
   }
 
   function seek(e: React.MouseEvent<HTMLDivElement>) {
@@ -116,8 +97,7 @@ export function AudioPlayer({
   const percent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="rounded-2xl bg-white/[0.03] border border-white/[0.07] overflow-hidden">
-      {/* Hidden audio element */}
+    <div className="glass-card-high rounded-[1.5rem] overflow-hidden">
       {current?.audioPath && (
         <audio
           ref={audioRef}
@@ -129,90 +109,90 @@ export function AudioPlayer({
       )}
 
       {/* Chapter info */}
-      <div className="px-6 pt-5 pb-4">
-        <div className="text-xs text-white/40 mb-1 uppercase tracking-widest">
-          Chapter {current?.number}
+      <div className="px-6 pt-6 pb-4">
+        <div className="text-[10px] font-label text-on-surface-variant/40 mb-1 uppercase tracking-[0.18em]">
+          Chapter {current?.number} of {chapters.length}
         </div>
-        <h3 className="text-lg font-semibold text-white leading-snug">
+        <h3 className="text-lg font-headline font-semibold text-on-surface leading-snug">
           {current?.title}
         </h3>
       </div>
 
       {/* Seekbar */}
-      <div className="px-6 pb-3">
-        <div
-          className="cursor-pointer group py-2"
-          onClick={seek}
-        >
-          <div className="relative h-1 rounded-full bg-white/10 overflow-hidden">
+      <div className="px-6 pb-2">
+        <div className="cursor-pointer group py-2" onClick={seek}>
+          <div className="relative h-1 rounded-full bg-white/8 overflow-hidden">
             <div
-              className="absolute left-0 top-0 h-full bg-amber-500 transition-none"
+              className="absolute left-0 top-0 h-full bg-primary rounded-full transition-none"
               style={{ width: `${percent}%` }}
             />
           </div>
         </div>
-        <div className="flex justify-between text-xs text-white/30 mt-1">
+        <div className="flex justify-between text-xs font-label text-on-surface-variant/40 mt-0.5">
           <span>{formatDuration(currentTime)}</span>
           <span>{duration > 0 ? formatDuration(duration) : "--:--"}</span>
         </div>
       </div>
 
       {/* Controls */}
-      <div className="flex items-center justify-between px-6 pb-5">
+      <div className="flex items-center justify-between px-6 pb-6 pt-2">
+        {/* Mute */}
         <button
           onClick={() => setMuted(!muted)}
-          className="text-white/30 hover:text-white/70 transition-colors"
+          className="text-on-surface-variant/30 hover:text-on-surface-variant transition-colors p-1"
         >
-          {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>
+            {muted ? "volume_off" : "volume_up"}
+          </span>
         </button>
 
-        <div className="flex items-center gap-4">
+        {/* Prev / Play / Next */}
+        <div className="flex items-center gap-5">
           <button
             onClick={() => goToChapter(currentIndex - 1)}
             disabled={currentIndex === 0}
-            className="text-white/50 hover:text-white transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+            className="text-on-surface-variant/50 hover:text-on-surface transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
           >
-            <SkipBack className="w-5 h-5" />
+            <span className="material-symbols-outlined" style={{ fontSize: "22px" }}>skip_previous</span>
           </button>
 
           <button
             onClick={togglePlay}
             disabled={!current?.audioPath}
-            className={cn(
-              "flex items-center justify-center w-12 h-12 rounded-full transition-all duration-150",
-              "bg-amber-500 text-black hover:bg-amber-400 shadow-lg shadow-amber-500/20",
-              "disabled:opacity-40 disabled:cursor-not-allowed"
-            )}
+            className="flex items-center justify-center w-14 h-14 rounded-full bg-primary text-on-primary-fixed hover:scale-105 transition-all duration-150 shadow-[0_0_30px_rgba(255,185,95,0.35)] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
           >
             {buffering ? (
-              <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
+              <span className="material-symbols-outlined animate-spin" style={{ fontSize: "22px", animationDuration: "1s" }}>
+                progress_activity
+              </span>
             ) : isPlaying ? (
-              <Pause className="w-5 h-5" />
+              <span className="material-symbols-outlined" style={{ fontSize: "22px", fontVariationSettings: "'FILL' 1" }}>pause</span>
             ) : (
-              <Play className="w-5 h-5 ml-0.5" />
+              <span className="material-symbols-outlined" style={{ fontSize: "22px", fontVariationSettings: "'FILL' 1", marginLeft: "2px" }}>play_arrow</span>
             )}
           </button>
 
           <button
             onClick={() => goToChapter(currentIndex + 1)}
             disabled={currentIndex === chapters.length - 1}
-            className="text-white/50 hover:text-white transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+            className="text-on-surface-variant/50 hover:text-on-surface transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
           >
-            <SkipForward className="w-5 h-5" />
+            <span className="material-symbols-outlined" style={{ fontSize: "22px" }}>skip_next</span>
           </button>
         </div>
 
-        {current?.audioPath && (
+        {/* Download chapter */}
+        {current?.audioPath ? (
           <a
             href={current.audioPath}
             download={`chapter-${current.number}.mp3`}
-            className="text-white/30 hover:text-white/70 transition-colors"
+            className="text-on-surface-variant/30 hover:text-primary transition-colors p-1"
+            title="Download chapter"
           >
-            <Download className="w-4 h-4" />
+            <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>download</span>
           </a>
+        ) : (
+          <div className="w-8" />
         )}
       </div>
     </div>

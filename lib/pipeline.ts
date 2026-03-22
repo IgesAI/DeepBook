@@ -5,6 +5,21 @@ import { createJob, updateJob } from "./jobs";
 import { enrichPrompt, runDeepResearch, formatAsAudiobook } from "./openai";
 import { generateChapterAudio } from "./elevenlabs";
 
+// Run tasks with a max concurrency limit
+async function parallelLimit(
+  tasks: (() => Promise<void>)[],
+  limit: number
+): Promise<void> {
+  const queue = [...tasks];
+  const workers = Array.from({ length: Math.min(limit, queue.length) }, async () => {
+    while (queue.length > 0) {
+      const task = queue.shift();
+      if (task) await task();
+    }
+  });
+  await Promise.all(workers);
+}
+
 export function startPipeline(audiobookId: string) {
   // Fire and forget — do not await
   runPipeline(audiobookId).catch(async (err) => {
@@ -60,7 +75,7 @@ async function runPipeline(audiobookId: string) {
     data: { title },
   });
 
-  // ── Step 4: Generate audio for each chapter
+  // ── Step 4: Generate audio for all chapters in parallel (max 5 concurrent)
   await db.audiobook.update({
     where: { id: audiobookId },
     data: { status: "generating" },
@@ -69,35 +84,46 @@ async function runPipeline(audiobookId: string) {
   const audioDir = path.join(process.cwd(), "public", "audio", audiobookId);
   await mkdir(audioDir, { recursive: true });
 
-  for (let i = 0; i < chapters.length; i++) {
-    const chapter = chapters[i];
-    const percent = 65 + Math.round((i / chapters.length) * 32);
-    updateJob(
-      audiobookId,
-      "generating",
-      `Narrating chapter ${i + 1} of ${chapters.length}: "${chapter.title}"...`,
-      percent
-    );
+  updateJob(
+    audiobookId,
+    "generating",
+    `Narrating ${chapters.length} chapters in parallel...`,
+    65
+  );
 
-    const audioBuffer = await generateChapterAudio(
-      chapter.content,
-      audiobook.voiceId
-    );
-    const filename = `chapter-${i + 1}.mp3`;
-    const audioPath = `/audio/${audiobookId}/${filename}`;
+  let completed = 0;
 
-    await writeFile(path.join(audioDir, filename), audioBuffer);
+  await parallelLimit(
+    chapters.map((chapter, i) => async () => {
+      const audioBuffer = await generateChapterAudio(
+        chapter.content,
+        audiobook.voiceId
+      );
+      const filename = `chapter-${i + 1}.mp3`;
+      const audioPath = `/audio/${audiobookId}/${filename}`;
 
-    await db.chapter.create({
-      data: {
+      await writeFile(path.join(audioDir, filename), audioBuffer);
+
+      await db.chapter.create({
+        data: {
+          audiobookId,
+          number: i + 1,
+          title: chapter.title,
+          content: chapter.content,
+          audioPath,
+        },
+      });
+
+      completed++;
+      updateJob(
         audiobookId,
-        number: i + 1,
-        title: chapter.title,
-        content: chapter.content,
-        audioPath,
-      },
-    });
-  }
+        "generating",
+        `Narrating chapters... (${completed}/${chapters.length} done)`,
+        65 + Math.round((completed / chapters.length) * 32)
+      );
+    }),
+    5 // ElevenLabs Creator plan allows 5 concurrent requests
+  );
 
   // ── Complete
   await db.audiobook.update({

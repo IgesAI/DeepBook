@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import { VoiceSelector } from "./VoiceSelector";
-import { BookOpen, Wand2, ChevronDown, ArrowRight, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Question {
@@ -15,18 +14,19 @@ interface Question {
 }
 
 const EXAMPLE_TOPICS = [
-  "The history of artificial intelligence and its future impact on society",
-  "How the Roman Empire rose to power and why it eventually fell",
-  "The science of sleep: why we dream and how it shapes our health",
+  "The history of artificial intelligence and its impact on society",
+  "How the Roman Empire rose to power and why it fell",
+  "The science of sleep: why we dream and how it affects us",
 ];
 
 export function CreateForm() {
   const router = useRouter();
 
-  // Step 1 — topic
   const [topic, setTopic] = useState("");
 
-  // Step 2 — clarifying questions
+  // Step 2 — interpretation + questions
+  const [interpretation, setInterpretation] = useState("");
+  const [interpretationConfirmed, setInterpretationConfirmed] = useState<boolean | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [loadingQuestions, setLoadingQuestions] = useState(false);
@@ -41,12 +41,19 @@ export function CreateForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  function resetSteps() {
+    setInterpretation("");
+    setInterpretationConfirmed(null);
+    setQuestions([]);
+    setAnswers({});
+    setQuestionsReady(false);
+  }
+
   async function fetchQuestions() {
     if (!topic.trim()) return setError("Please enter a topic first.");
     setError("");
     setLoadingQuestions(true);
-    setQuestionsReady(false);
-    setAnswers({});
+    resetSteps();
 
     try {
       const res = await fetch("/api/questions", {
@@ -55,6 +62,7 @@ export function CreateForm() {
         body: JSON.stringify({ topic: topic.trim() }),
       });
       const data = await res.json();
+      setInterpretation(data.interpretation || "");
       setQuestions(data.questions || []);
       setQuestionsReady(true);
     } catch {
@@ -69,7 +77,7 @@ export function CreateForm() {
     setAnswers((prev) => ({ ...prev, [questionId]: option }));
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!topic.trim()) return setError("Please enter a topic.");
     if (!voiceId) return setError("Please select a narrator voice.");
@@ -102,46 +110,39 @@ export function CreateForm() {
     }
   }
 
-  const allAnswered = questions.length > 0 && questions.every((q) => answers[q.id]);
   const canSubmit = topic.trim() && voiceId;
+  const showQuestions = questionsReady && questions.length > 0 && interpretationConfirmed !== false;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
 
       {/* ── Step 1: Topic ── */}
       <div className="space-y-3">
-        <label className="block text-sm font-medium text-white/70">
+        <label className="block text-sm font-label text-on-surface-variant/70">
           What should your audiobook be about?
         </label>
         <Textarea
-          placeholder="Enter any topic, question, or area of interest..."
+          placeholder="Enter any topic, question, person, or area of interest..."
           value={topic}
           onChange={(e) => {
             setTopic(e.target.value);
-            setQuestionsReady(false);
-            setQuestions([]);
-            setAnswers({});
+            resetSteps();
           }}
           rows={3}
           className="text-base leading-relaxed"
           maxLength={500}
         />
 
-        {/* Example topics */}
+        {/* Example chips */}
         <div className="flex flex-wrap gap-2">
           {EXAMPLE_TOPICS.map((ex) => (
             <button
               key={ex}
               type="button"
-              onClick={() => {
-                setTopic(ex);
-                setQuestionsReady(false);
-                setQuestions([]);
-                setAnswers({});
-              }}
-              className="text-xs px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.07] text-white/40 hover:text-white/70 hover:border-white/15 transition-all"
+              onClick={() => { setTopic(ex); resetSteps(); }}
+              className="text-xs px-3 py-1.5 rounded-full glass-card border-0 text-on-surface-variant/50 hover:text-on-surface-variant transition-all"
             >
-              {ex.length > 48 ? ex.slice(0, 48) + "…" : ex}
+              {ex.length > 50 ? ex.slice(0, 50) + "…" : ex}
             </button>
           ))}
         </div>
@@ -150,38 +151,87 @@ export function CreateForm() {
         {topic.trim() && !questionsReady && (
           <Button
             type="button"
-            variant="outline"
+            variant="glass"
             size="md"
             loading={loadingQuestions}
             onClick={fetchQuestions}
             className="w-full"
           >
             {loadingQuestions ? (
-              "Generating questions…"
+              "Analysing your topic..."
             ) : (
               <>
+                <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>auto_fix_high</span>
                 Refine your audiobook
-                <ArrowRight className="w-3.5 h-3.5" />
               </>
             )}
           </Button>
         )}
       </div>
 
-      {/* ── Step 2: Clarifying questions ── */}
-      {questionsReady && questions.length > 0 && (
+      {/* ── Step 2a: Topic interpretation / confirmation ── */}
+      {questionsReady && interpretation && interpretationConfirmed === null && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="h-px flex-1 bg-outline-variant/30" />
+            <span className="text-[10px] font-label text-on-surface-variant/40 uppercase tracking-[0.2em]">
+              Confirm topic
+            </span>
+            <div className="h-px flex-1 bg-outline-variant/30" />
+          </div>
+
+          <div className="glass-card rounded-2xl p-4 space-y-4">
+            <div className="flex items-start gap-3">
+              <span className="material-symbols-outlined text-primary mt-0.5 flex-shrink-0" style={{ fontSize: "18px" }}>
+                lightbulb
+              </span>
+              <div className="space-y-1">
+                <p className="text-xs font-label text-on-surface-variant/50 uppercase tracking-[0.15em]">
+                  We understood your topic as:
+                </p>
+                <p className="text-sm font-label text-on-surface leading-relaxed">{interpretation}</p>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setInterpretationConfirmed(true)}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary/10 border border-primary/25 text-primary text-sm font-label font-medium hover:bg-primary/15 transition-colors"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: "14px", fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                Yes, that's correct
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setInterpretationConfirmed(false);
+                  resetSteps();
+                }}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl glass-card border-0 text-on-surface-variant/60 text-sm font-label hover:text-on-surface transition-colors"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>edit</span>
+                Let me clarify
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Step 2b: Clarifying questions ── */}
+      {showQuestions && interpretationConfirmed === true && (
         <div className="space-y-5">
           <div className="flex items-center gap-2">
-            <div className="h-px flex-1 bg-white/[0.06]" />
-            <span className="text-xs text-white/30 uppercase tracking-widest">
+            <div className="h-px flex-1 bg-outline-variant/30" />
+            <span className="text-[10px] font-label text-on-surface-variant/40 uppercase tracking-[0.2em]">
               Refine your book
             </span>
-            <div className="h-px flex-1 bg-white/[0.06]" />
+            <div className="h-px flex-1 bg-outline-variant/30" />
           </div>
 
           {questions.map((q) => (
             <div key={q.id} className="space-y-2.5">
-              <p className="text-sm font-medium text-white/80">{q.question}</p>
+              <p className="text-sm font-label font-medium text-on-surface/80">{q.question}</p>
               <div className="grid grid-cols-2 gap-2">
                 {q.options.map((opt) => {
                   const selected = answers[q.id] === opt;
@@ -193,69 +243,68 @@ export function CreateForm() {
                       className={cn(
                         "flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm text-left transition-all duration-150",
                         selected
-                          ? "bg-amber-500/10 border-amber-500/40 text-white"
-                          : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/15 hover:text-white/80"
+                          ? "bg-primary/10 border-primary/30 text-on-surface"
+                          : "glass-card border-0 text-on-surface-variant/60 hover:text-on-surface-variant"
                       )}
                     >
                       <span
                         className={cn(
-                          "flex-shrink-0 w-4 h-4 rounded-full border flex items-center justify-center transition-colors",
-                          selected
-                            ? "border-amber-500 bg-amber-500"
-                            : "border-white/20"
+                          "flex-shrink-0 w-4 h-4 rounded-full border flex items-center justify-center transition-all",
+                          selected ? "border-primary bg-primary" : "border-outline-variant"
                         )}
                       >
-                        {selected && <Check className="w-2.5 h-2.5 text-black" />}
+                        {selected && (
+                          <span className="material-symbols-outlined text-on-primary-fixed" style={{ fontSize: "10px", fontVariationSettings: "'FILL' 1" }}>
+                            check
+                          </span>
+                        )}
                       </span>
-                      {opt}
+                      <span className="font-label text-xs">{opt}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
           ))}
-
-          {!allAnswered && (
-            <p className="text-xs text-white/25 text-center">
-              Answer all questions above to tailor your audiobook, or skip and continue below.
-            </p>
-          )}
         </div>
       )}
 
-      {/* ── Step 3: Voice ── */}
+      {/* ── Step 3: Voice selector ── */}
       {(questionsReady || topic.trim()) && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <div className="h-px flex-1 bg-white/[0.06]" />
-            <span className="text-xs text-white/30 uppercase tracking-widest">
+            <div className="h-px flex-1 bg-outline-variant/30" />
+            <span className="text-[10px] font-label text-on-surface-variant/40 uppercase tracking-[0.2em]">
               Narrator voice
             </span>
-            <div className="h-px flex-1 bg-white/[0.06]" />
+            <div className="h-px flex-1 bg-outline-variant/30" />
           </div>
 
           <button
             type="button"
             onClick={() => setShowVoices(!showVoices)}
-            className="flex w-full items-center justify-between text-sm text-white/60 hover:text-white transition-colors px-1"
+            className="flex w-full items-center justify-between text-sm text-on-surface-variant/60 hover:text-on-surface transition-colors px-1"
           >
             <span className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-amber-400" />
+              <span className="material-symbols-outlined text-primary" style={{ fontSize: "16px" }}>mic</span>
               {voiceName ? (
                 <>
-                  <span className="text-white font-medium">{voiceName}</span>
-                  <span className="text-white/30">· tap to change</span>
+                  <span className="text-on-surface font-label font-medium">{voiceName}</span>
+                  <span className="text-on-surface-variant/30 font-label text-xs">· tap to change</span>
                 </>
               ) : (
-                "Choose a narrator voice"
+                <span className="font-label">Choose a narrator voice</span>
               )}
             </span>
-            <ChevronDown
+            <span
               className={cn(
-                "w-4 h-4 transition-transform duration-200",
+                "material-symbols-outlined transition-transform duration-200",
                 showVoices && "rotate-180"
               )}
-            />
+              style={{ fontSize: "18px" }}
+            >
+              expand_more
+            </span>
           </button>
 
           {showVoices && (
@@ -273,9 +322,9 @@ export function CreateForm() {
             <button
               type="button"
               onClick={() => setShowVoices(true)}
-              className="flex items-center gap-2 px-4 py-3 w-full rounded-xl bg-white/[0.03] border border-dashed border-white/[0.12] text-white/30 hover:border-white/20 hover:text-white/50 text-sm transition-all"
+              className="flex items-center gap-2 px-4 py-3 w-full rounded-2xl glass-card border-dashed border border-outline-variant/30 text-on-surface-variant/30 hover:text-on-surface-variant/60 text-sm font-label transition-all"
             >
-              <Wand2 className="w-4 h-4" />
+              <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>record_voice_over</span>
               Browse narrator voices
             </button>
           )}
@@ -283,22 +332,28 @@ export function CreateForm() {
       )}
 
       {error && (
-        <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+        <p className="text-sm font-label text-error bg-error/10 border border-error/20 rounded-2xl px-4 py-3">
           {error}
         </p>
       )}
 
-      {/* Submit — only show once topic is entered */}
       {topic.trim() && (
         <Button
           type="submit"
-          variant="amber"
+          variant="amber-fill"
           size="lg"
           loading={loading}
           disabled={!canSubmit}
           className="w-full"
         >
-          {loading ? "Starting deep research…" : "Create Audiobook"}
+          {loading ? (
+            "Starting research..."
+          ) : (
+            <>
+              <span className="material-symbols-outlined" style={{ fontSize: "18px", fontVariationSettings: "'FILL' 1" }}>auto_stories</span>
+              Create Audiobook
+            </>
+          )}
         </Button>
       )}
     </form>
