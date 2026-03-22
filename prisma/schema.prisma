@@ -18,6 +18,7 @@ model Audiobook {
   status      String    @default("queued")
   progress    String    @default("")
   errorMsg    String    @default("")
+  sequelOf    String    @default("")
   chapters    Chapter[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

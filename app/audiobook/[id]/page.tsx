@@ -2,12 +2,14 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { use } from "react";
+import { useRouter } from "next/navigation";
 import { Nav } from "@/components/Nav";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { ChapterList } from "@/components/ChapterList";
 import { ProgressTracker } from "@/components/ProgressTracker";
 import { Badge } from "@/components/ui/badge";
 import { gradientForId } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 interface Chapter {
   id: string;
@@ -21,6 +23,7 @@ interface Audiobook {
   id: string;
   topic: string;
   title: string;
+  voiceId: string;
   voiceName: string;
   status: string;
   chapters: Chapter[];
@@ -28,9 +31,17 @@ interface Audiobook {
 
 export default function AudiobookPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
   const [audiobook, setAudiobook] = useState<Audiobook | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
+
+  // Delete state
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // Sequel state
+  const [generatingSequel, setGeneratingSequel] = useState(false);
 
   const fetchAudiobook = useCallback(async () => {
     const res = await fetch(`/api/audiobooks/${id}`);
@@ -40,12 +51,39 @@ export default function AudiobookPage({ params }: { params: Promise<{ id: string
 
   useEffect(() => { fetchAudiobook(); }, [fetchAudiobook]);
 
+  async function handleDelete() {
+    if (!confirmDelete) { setConfirmDelete(true); return; }
+    setDeleting(true);
+    await fetch(`/api/audiobooks/${id}`, { method: "DELETE" });
+    router.push("/dashboard");
+  }
+
+  async function handleSequel() {
+    if (!audiobook) return;
+    setGeneratingSequel(true);
+    const res = await fetch("/api/audiobooks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        topic: audiobook.title || audiobook.topic,
+        voiceId: audiobook.voiceId,
+        voiceName: audiobook.voiceName,
+        sequelOf: audiobook.id,
+      }),
+    });
+    if (res.ok) {
+      const sequel = await res.json();
+      router.push(`/audiobook/${sequel.id}`);
+    } else {
+      setGeneratingSequel(false);
+    }
+  }
+
   const isProcessing = audiobook && ["queued", "researching", "formatting", "generating"].includes(audiobook.status);
   const isReady      = audiobook?.status === "complete";
   const currentChapter = audiobook?.chapters[currentChapterIndex];
   const gradient     = id ? gradientForId(id) : "from-amber-900/60 to-orange-900/40";
 
-  /* ── Loading spinner ── */
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -54,7 +92,6 @@ export default function AudiobookPage({ params }: { params: Promise<{ id: string
     );
   }
 
-  /* ── Not found ── */
   if (!audiobook) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-3 text-center px-6">
@@ -73,7 +110,6 @@ export default function AudiobookPage({ params }: { params: Promise<{ id: string
       {isProcessing && (
         <main className="flex-1 pt-20 lg:pl-64 flex flex-col items-center justify-center px-6">
           <div className="w-full max-w-sm">
-            {/* Mini cover */}
             <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center mx-auto mb-8`}>
               <span className="material-symbols-outlined text-white/20 text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>
                 auto_stories
@@ -88,39 +124,93 @@ export default function AudiobookPage({ params }: { params: Promise<{ id: string
         </main>
       )}
 
-      {/* ── Ready state — player layout ── */}
+      {/* ── Ready state ── */}
       {isReady && audiobook.chapters.length > 0 && (
         <main className="flex-1 pt-20 lg:pl-64 flex overflow-hidden" style={{ height: "100vh" }}>
 
-          {/* Sidebar — Chapter list */}
+          {/* Sidebar */}
           <aside className="hidden md:flex flex-col w-72 lg:w-80 border-r border-white/[0.06] overflow-y-auto flex-shrink-0 pt-4 pb-6">
-            {/* Book cover */}
-            <div className="px-4 mb-6">
+            {/* Cover */}
+            <div className="px-4 mb-5">
               <div className={`h-44 rounded-[1.5rem] bg-gradient-to-br ${gradient} flex items-center justify-center relative overflow-hidden`}>
                 <div className="noise-overlay" />
                 <span className="material-symbols-outlined text-white/10 text-6xl" style={{ fontVariationSettings: "'FILL' 1" }}>
                   auto_stories
                 </span>
               </div>
-              <div className="mt-4 px-1">
-                <h2 className="font-headline font-semibold text-on-surface text-sm leading-snug mb-1">
+              <div className="mt-4 px-1 space-y-1">
+                <h2 className="font-headline font-semibold text-on-surface text-sm leading-snug">
                   {audiobook.title || audiobook.topic}
                 </h2>
                 {audiobook.voiceName && (
-                  <p className="text-xs font-label text-on-surface-variant/40 flex items-center gap-1 mt-1">
+                  <p className="text-xs font-label text-on-surface-variant/40 flex items-center gap-1">
                     <span className="material-symbols-outlined" style={{ fontSize: "12px" }}>mic</span>
                     {audiobook.voiceName}
                   </p>
                 )}
-                <a
-                  href={`/api/audiobooks/${id}/download`}
-                  download
-                  className="mt-3 flex items-center gap-1.5 text-xs font-label text-on-surface-variant/35 hover:text-primary transition-colors group"
-                >
-                  <span className="material-symbols-outlined group-hover:text-primary transition-colors" style={{ fontSize: "14px" }}>download</span>
-                  Download full audiobook (.mp3)
-                </a>
               </div>
+            </div>
+
+            {/* Actions */}
+            <div className="px-4 mb-5 space-y-2">
+              {/* Download */}
+              <a
+                href={`/api/audiobooks/${id}/download`}
+                download
+                className="flex items-center gap-2 w-full px-3 py-2.5 rounded-2xl glass-card border-0 text-on-surface-variant/60 hover:text-on-surface text-xs font-label transition-colors group"
+              >
+                <span className="material-symbols-outlined group-hover:text-primary transition-colors" style={{ fontSize: "16px" }}>download</span>
+                Download full audiobook
+              </a>
+
+              {/* Generate Sequel */}
+              <button
+                onClick={handleSequel}
+                disabled={generatingSequel}
+                className="flex items-center gap-2 w-full px-3 py-2.5 rounded-2xl bg-secondary/10 border border-secondary/20 text-secondary hover:bg-secondary/15 text-xs font-label transition-colors disabled:opacity-50"
+              >
+                {generatingSequel ? (
+                  <span className="material-symbols-outlined animate-spin" style={{ fontSize: "16px", animationDuration: "1s" }}>progress_activity</span>
+                ) : (
+                  <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>auto_stories</span>
+                )}
+                {generatingSequel ? "Starting sequel..." : "Generate Sequel"}
+              </button>
+
+              {/* Delete */}
+              {confirmDelete ? (
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-2xl bg-error/15 border border-error/25 text-error text-xs font-label font-medium hover:bg-error/20 transition-colors disabled:opacity-50"
+                  >
+                    {deleting ? (
+                      <span className="material-symbols-outlined animate-spin" style={{ fontSize: "14px", animationDuration: "1s" }}>progress_activity</span>
+                    ) : (
+                      <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>delete_forever</span>
+                    )}
+                    Confirm delete
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="px-3 py-2.5 rounded-2xl glass-card border-0 text-on-surface-variant/50 hover:text-on-surface text-xs font-label transition-colors"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>close</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleDelete}
+                  className={cn(
+                    "flex items-center gap-2 w-full px-3 py-2.5 rounded-2xl glass-card border-0",
+                    "text-on-surface-variant/40 hover:text-error text-xs font-label transition-colors"
+                  )}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>delete</span>
+                  Delete audiobook
+                </button>
+              )}
             </div>
 
             {/* Chapter list */}
@@ -136,12 +226,12 @@ export default function AudiobookPage({ params }: { params: Promise<{ id: string
             </div>
           </aside>
 
-          {/* Main — Player + Text */}
+          {/* Main content */}
           <div className="flex-1 overflow-y-auto">
             <div className="max-w-2xl mx-auto w-full px-5 py-8 flex flex-col gap-6">
 
-              {/* Mobile: chapter badge */}
-              <div className="md:hidden flex items-center gap-2">
+              {/* Mobile badges */}
+              <div className="md:hidden flex items-center gap-2 flex-wrap">
                 <Badge variant="outline">
                   Ch {currentChapter?.number} of {audiobook.chapters.length}
                 </Badge>
@@ -160,7 +250,27 @@ export default function AudiobookPage({ params }: { params: Promise<{ id: string
                 onChapterChange={setCurrentChapterIndex}
               />
 
-              {/* Mobile: chapter list */}
+              {/* Mobile actions */}
+              <div className="md:hidden flex gap-2">
+                <a
+                  href={`/api/audiobooks/${id}/download`}
+                  download
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-2xl glass-card border-0 text-on-surface-variant/60 text-xs font-label"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>download</span>
+                  Download
+                </a>
+                <button
+                  onClick={handleSequel}
+                  disabled={generatingSequel}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-2xl bg-secondary/10 border border-secondary/20 text-secondary text-xs font-label disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>auto_stories</span>
+                  {generatingSequel ? "Starting..." : "Sequel"}
+                </button>
+              </div>
+
+              {/* Mobile chapter list */}
               <div className="md:hidden glass-card rounded-[1.5rem] p-4">
                 <p className="text-[10px] font-label text-on-surface-variant/30 uppercase tracking-[0.18em] mb-3">
                   {audiobook.chapters.length} Chapters
@@ -202,11 +312,17 @@ export default function AudiobookPage({ params }: { params: Promise<{ id: string
             <h1 className="font-headline font-semibold text-lg text-on-surface mb-2">
               {audiobook.status === "error" ? "Something went wrong" : "No chapters yet"}
             </h1>
-            <p className="text-sm font-label text-on-surface-variant/40">
+            <p className="text-sm font-label text-on-surface-variant/40 mb-4">
               {audiobook.status === "error"
                 ? "The audiobook failed to generate. Please try again."
                 : "This audiobook is still being processed."}
             </p>
+            <button
+              onClick={handleDelete}
+              className="text-xs font-label text-on-surface-variant/30 hover:text-error transition-colors"
+            >
+              Delete and start over
+            </button>
           </div>
         </main>
       )}

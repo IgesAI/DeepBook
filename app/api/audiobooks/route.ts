@@ -16,7 +16,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { topic, voiceId, voiceName, answers } = await req.json();
+  const { topic, voiceId, voiceName, answers, sequelOf } = await req.json();
 
   if (!topic?.trim()) {
     return NextResponse.json({ error: "Topic is required" }, { status: 400 });
@@ -31,11 +31,11 @@ export async function POST(req: NextRequest) {
       voiceId,
       voiceName: voiceName || "",
       answers: answers ? JSON.stringify(answers) : "",
+      sequelOf: sequelOf || "",
       status: "queued",
     },
   });
 
-  // Start the pipeline in the background
   startPipeline(audiobook.id);
 
   return NextResponse.json(audiobook, { status: 201 });

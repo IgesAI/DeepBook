@@ -43,7 +43,8 @@ Begin immediately with "INTRODUCTION" — do not add any preamble.`;
 
 export async function enrichPrompt(
   topic: string,
-  answers?: Record<string, string>
+  answers?: Record<string, string>,
+  priorContext?: { title: string; chapterTitles: string[] }
 ): Promise<string> {
   let userContent = `Topic: ${topic}`;
 
@@ -52,6 +53,10 @@ export async function enrichPrompt(
       .map(([q, a]) => `- ${q}: ${a}`)
       .join("\n");
     userContent += `\n\nListener preferences:\n${lines}`;
+  }
+
+  if (priorContext) {
+    userContent += `\n\nSEQUEL CONTEXT: This is a sequel to the audiobook "${priorContext.title}". The original book covered these chapters: ${priorContext.chapterTitles.join(", ")}. The sequel should explore new angles, developments, and depth NOT covered in the original — do not repeat what was already covered. Build on it and go further.`;
   }
 
   const response = await openai.chat.completions.create({

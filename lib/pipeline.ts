@@ -45,7 +45,23 @@ async function runPipeline(audiobookId: string) {
   const answers = audiobook.answers
     ? (JSON.parse(audiobook.answers) as Record<string, string>)
     : undefined;
-  const enrichedPrompt = await enrichPrompt(audiobook.topic, answers);
+
+  // If this is a sequel, fetch the original book for context
+  let priorContext: { title: string; chapterTitles: string[] } | undefined;
+  if (audiobook.sequelOf) {
+    const parent = await db.audiobook.findUnique({
+      where: { id: audiobook.sequelOf },
+      include: { chapters: { select: { title: true }, orderBy: { number: "asc" } } },
+    });
+    if (parent) {
+      priorContext = {
+        title: parent.title || parent.topic,
+        chapterTitles: parent.chapters.map((c) => c.title),
+      };
+    }
+  }
+
+  const enrichedPrompt = await enrichPrompt(audiobook.topic, answers, priorContext);
 
   // ── Step 2: Deep Research (longest step — can take 5–15 minutes)
   await db.audiobook.update({

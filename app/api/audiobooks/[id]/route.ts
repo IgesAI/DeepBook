@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { rm } from "fs/promises";
+import path from "path";
 
 export async function GET(
   _req: NextRequest,
@@ -9,11 +11,7 @@ export async function GET(
 
   const audiobook = await db.audiobook.findUnique({
     where: { id },
-    include: {
-      chapters: {
-        orderBy: { number: "asc" },
-      },
-    },
+    include: { chapters: { orderBy: { number: "asc" } } },
   });
 
   if (!audiobook) {
@@ -29,6 +27,11 @@ export async function DELETE(
 ) {
   const { id } = await params;
 
+  // Delete audio files from disk
+  const audioDir = path.join(process.cwd(), "public", "audio", id);
+  await rm(audioDir, { recursive: true, force: true });
+
+  // Delete from DB (chapters cascade)
   await db.audiobook.delete({ where: { id } });
 
   return NextResponse.json({ success: true });

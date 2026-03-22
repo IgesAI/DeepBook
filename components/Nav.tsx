@@ -13,32 +13,10 @@ export function Nav({ active }: NavProps) {
 
   return (
     <>
-      {/* ── Top header ── */}
-      <header className="fixed top-0 w-full flex justify-between items-center px-6 lg:px-8 h-20 bg-background/40 backdrop-blur-[40px] border-b border-white/10 z-50">
+      {/* ── Top header — logo only ── */}
+      <header className="fixed top-0 w-full flex items-center px-6 lg:px-8 h-20 bg-background/40 backdrop-blur-[40px] border-b border-white/10 z-50">
         <Link href="/" className="text-xl font-headline font-bold text-primary tracking-tight">
           DeepBook
-        </Link>
-
-        <nav className="hidden md:flex items-center gap-8">
-          <Link href="/dashboard" className="font-label text-sm text-on-surface-variant hover:text-primary transition-colors duration-200">
-            Library
-          </Link>
-          <Link href="/create" className="font-label text-sm text-on-surface-variant hover:text-primary transition-colors duration-200">
-            Create
-          </Link>
-        </nav>
-
-        <Link
-          href="/create"
-          className="hidden md:flex items-center gap-2 bg-primary text-on-primary-fixed font-label font-bold text-sm px-5 py-2.5 rounded-full hover:scale-[1.02] transition-transform shadow-[0_0_20px_rgba(255,185,95,0.25)]"
-        >
-          <span className="material-symbols-outlined text-base">add</span>
-          New Book
-        </Link>
-
-        {/* Mobile menu icon */}
-        <Link href="/create" className="md:hidden">
-          <span className="material-symbols-outlined text-primary">add_circle</span>
         </Link>
       </header>
 
@@ -49,7 +27,7 @@ export function Nav({ active }: NavProps) {
             <span className="material-symbols-outlined text-primary text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
             <span className="font-headline font-bold text-primary text-lg">The Observatory</span>
           </div>
-          <p className="text-[10px] font-label text-on-surface-variant uppercase tracking-[0.2em]">Precision Synthesis</p>
+          <p className="text-[10px] font-label text-on-surface-variant/60 uppercase tracking-[0.2em]">Precision Synthesis</p>
         </div>
 
         <nav className="flex-1 space-y-0.5 px-3">
@@ -84,7 +62,7 @@ export function Nav({ active }: NavProps) {
       <nav className="lg:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-3 bg-background/80 backdrop-blur-[64px] rounded-t-3xl border-t border-white/10 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
         {[
           { href: "/", icon: "home", label: "Home" },
-          { href: "/dashboard", icon: "book", label: "Library" },
+          { href: "/dashboard", icon: "library_music", label: "Library" },
           { href: "/create", icon: "add_circle", label: "Create" },
         ].map(({ href, icon, label }) => (
           <Link key={href} href={href} className="flex flex-col items-center gap-1 text-on-surface-variant p-2">
