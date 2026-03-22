@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Progress } from "./ui/progress";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 interface Job {
   status: string;
@@ -56,9 +57,12 @@ function formatElapsed(seconds: number): string {
 }
 
 export function ProgressTracker({ audiobookId, onComplete }: ProgressTrackerProps) {
+  const router = useRouter();
   const [job, setJob] = useState<Job>({ status: "queued", progress: "Starting...", percent: 0 });
   const [elapsed, setElapsed] = useState(0);
   const [msgIndex, setMsgIndex] = useState(0);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   // Polling
   useEffect(() => {
@@ -102,6 +106,13 @@ export function ProgressTracker({ audiobookId, onComplete }: ProgressTrackerProp
     }, 4000);
     return () => clearInterval(t);
   }, [job.status]);
+
+  async function handleCancel() {
+    if (!confirmCancel) { setConfirmCancel(true); return; }
+    setCancelling(true);
+    await fetch(`/api/audiobooks/${audiobookId}/cancel`, { method: "POST" });
+    router.push("/dashboard");
+  }
 
   const isError    = job.status === "error";
   const isComplete = job.status === "complete";
@@ -243,6 +254,39 @@ export function ProgressTracker({ audiobookId, onComplete }: ProgressTrackerProp
         <p className="text-xs font-label text-on-surface-variant/25">
           You can safely close this tab. Your audiobook will be ready when you return.
         </p>
+      </div>
+
+      {/* ── Cancel button ── */}
+      <div className="flex items-center gap-2">
+        {confirmCancel ? (
+          <>
+            <button
+              onClick={handleCancel}
+              disabled={cancelling}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-error/15 border border-error/25 text-error text-xs font-label font-medium hover:bg-error/20 transition-colors disabled:opacity-50"
+            >
+              {cancelling ? (
+                <span className="material-symbols-outlined animate-spin" style={{ fontSize: "13px", animationDuration: "1s" }}>progress_activity</span>
+              ) : (
+                <span className="material-symbols-outlined" style={{ fontSize: "13px" }}>delete_forever</span>
+              )}
+              {cancelling ? "Cancelling..." : "Yes, cancel it"}
+            </button>
+            <button
+              onClick={() => setConfirmCancel(false)}
+              className="px-3 py-2 rounded-xl glass-card text-on-surface-variant/50 hover:text-on-surface text-xs font-label transition-colors"
+            >
+              Keep going
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={handleCancel}
+            className="text-xs font-label text-on-surface-variant/25 hover:text-on-surface-variant/50 transition-colors"
+          >
+            Cancel generation
+          </button>
+        )}
       </div>
     </div>
   );

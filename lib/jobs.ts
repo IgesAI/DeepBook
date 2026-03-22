@@ -4,13 +4,15 @@ export type JobStatus =
   | "formatting"
   | "generating"
   | "complete"
-  | "error";
+  | "error"
+  | "cancelled";
 
 export interface Job {
   id: string;
   status: JobStatus;
   progress: string;
   percent: number;
+  cancelled: boolean;
 }
 
 // In-memory store for real-time progress (cleared on server restart)
@@ -18,7 +20,7 @@ export interface Job {
 const jobs = new Map<string, Job>();
 
 export function createJob(id: string): Job {
-  const job: Job = { id, status: "queued", progress: "Queued...", percent: 0 };
+  const job: Job = { id, status: "queued", progress: "Queued...", percent: 0, cancelled: false };
   jobs.set(id, job);
   return job;
 }
@@ -35,6 +37,18 @@ export function updateJob(
     job.progress = progress;
     job.percent = percent;
   }
+}
+
+export function cancelJob(id: string) {
+  const job = jobs.get(id);
+  if (job) {
+    job.cancelled = true;
+    job.status = "cancelled";
+  }
+}
+
+export function isJobCancelled(id: string): boolean {
+  return jobs.get(id)?.cancelled ?? false;
 }
 
 export function getJob(id: string): Job | undefined {

@@ -1,9 +1,17 @@
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { db } from "./db";
-import { createJob, updateJob } from "./jobs";
+import { createJob, updateJob, isJobCancelled } from "./jobs";
 import { enrichPrompt, runDeepResearch, formatAsAudiobook } from "./openai";
 import { generateChapterAudio } from "./elevenlabs";
+
+class CancelledError extends Error {
+  constructor() { super("Cancelled by user"); }
+}
+
+function checkCancelled(id: string) {
+  if (isJobCancelled(id)) throw new CancelledError();
+}
 
 // Run tasks with a max concurrency limit
 async function parallelLimit(
@@ -23,6 +31,10 @@ async function parallelLimit(
 export function startPipeline(audiobookId: string) {
   // Fire and forget — do not await
   runPipeline(audiobookId).catch(async (err) => {
+    if (err instanceof CancelledError) {
+      // Pipeline was cancelled by the user — DB cleanup already done via cancel route
+      return;
+    }
     console.error(`Pipeline failed for ${audiobookId}:`, err);
     updateJob(audiobookId, "error", String(err), 0);
     await db.audiobook.update({
@@ -62,6 +74,7 @@ async function runPipeline(audiobookId: string) {
   }
 
   const enrichedPrompt = await enrichPrompt(audiobook.topic, answers, priorContext);
+  checkCancelled(audiobookId);
 
   // ── Step 2: Deep Research (longest step — can take 5–15 minutes)
   await db.audiobook.update({
@@ -73,6 +86,7 @@ async function runPipeline(audiobookId: string) {
     enrichedPrompt,
     (msg) => updateJob(audiobookId, "researching", msg, 20)
   );
+  checkCancelled(audiobookId);
 
   // ── Step 3: Format research into audiobook script
   updateJob(audiobookId, "formatting", "Crafting your audiobook script...", 62);
@@ -85,6 +99,7 @@ async function runPipeline(audiobookId: string) {
     researchText,
     audiobook.topic
   );
+  checkCancelled(audiobookId);
 
   await db.audiobook.update({
     where: { id: audiobookId },

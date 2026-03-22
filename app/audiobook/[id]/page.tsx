@@ -11,6 +11,38 @@ import { Badge } from "@/components/ui/badge";
 import { gradientForId } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
+const SEQUEL_QUESTIONS = [
+  {
+    id: "direction",
+    question: "What direction should the sequel take?",
+    options: [
+      "Go deeper on what was already covered",
+      "Explore a completely different angle",
+      "Continue the story — what happened next",
+      "Challenge or counter the ideas from the original",
+    ],
+  },
+  {
+    id: "focus",
+    question: "What should the sequel focus on?",
+    options: [
+      "More specific detail and technical depth",
+      "Broader context and bigger picture",
+      "Real-world stories and human impact",
+      "Future implications and what comes next",
+    ],
+  },
+  {
+    id: "audience",
+    question: "Who is this sequel for?",
+    options: [
+      "Same audience as the original",
+      "Someone who wants more of a challenge",
+      "Someone completely new to the topic",
+    ],
+  },
+];
+
 interface Chapter {
   id: string;
   number: number;
@@ -41,7 +73,8 @@ export default function AudiobookPage({ params }: { params: Promise<{ id: string
   const [deleting, setDeleting] = useState(false);
 
   // Sequel state
-  const [generatingSequel, setGeneratingSequel] = useState(false);
+  const [sequelStep, setSequelStep] = useState<"idle" | "questions" | "submitting">("idle");
+  const [sequelAnswers, setSequelAnswers] = useState<Record<string, string>>({});
 
   const fetchAudiobook = useCallback(async () => {
     const res = await fetch(`/api/audiobooks/${id}`);
@@ -58,9 +91,9 @@ export default function AudiobookPage({ params }: { params: Promise<{ id: string
     router.push("/dashboard");
   }
 
-  async function handleSequel() {
+  async function submitSequel() {
     if (!audiobook) return;
-    setGeneratingSequel(true);
+    setSequelStep("submitting");
     const res = await fetch("/api/audiobooks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -69,13 +102,14 @@ export default function AudiobookPage({ params }: { params: Promise<{ id: string
         voiceId: audiobook.voiceId,
         voiceName: audiobook.voiceName,
         sequelOf: audiobook.id,
+        answers: sequelAnswers,
       }),
     });
     if (res.ok) {
       const sequel = await res.json();
       router.push(`/audiobook/${sequel.id}`);
     } else {
-      setGeneratingSequel(false);
+      setSequelStep("questions");
     }
   }
 
@@ -165,16 +199,12 @@ export default function AudiobookPage({ params }: { params: Promise<{ id: string
 
               {/* Generate Sequel */}
               <button
-                onClick={handleSequel}
-                disabled={generatingSequel}
+                onClick={() => setSequelStep("questions")}
+                disabled={sequelStep !== "idle"}
                 className="flex items-center gap-2 w-full px-3 py-2.5 rounded-2xl bg-secondary/10 border border-secondary/20 text-secondary hover:bg-secondary/15 text-xs font-label transition-colors disabled:opacity-50"
               >
-                {generatingSequel ? (
-                  <span className="material-symbols-outlined animate-spin" style={{ fontSize: "16px", animationDuration: "1s" }}>progress_activity</span>
-                ) : (
-                  <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>auto_stories</span>
-                )}
-                {generatingSequel ? "Starting sequel..." : "Generate Sequel"}
+                <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>auto_stories</span>
+                Generate Sequel
               </button>
 
               {/* Delete */}
@@ -261,12 +291,12 @@ export default function AudiobookPage({ params }: { params: Promise<{ id: string
                   Download
                 </a>
                 <button
-                  onClick={handleSequel}
-                  disabled={generatingSequel}
+                  onClick={() => setSequelStep("questions")}
+                  disabled={sequelStep !== "idle"}
                   className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-2xl bg-secondary/10 border border-secondary/20 text-secondary text-xs font-label disabled:opacity-50"
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>auto_stories</span>
-                  {generatingSequel ? "Starting..." : "Sequel"}
+                  Sequel
                 </button>
               </div>
 
@@ -302,6 +332,70 @@ export default function AudiobookPage({ params }: { params: Promise<{ id: string
             </div>
           </div>
         </main>
+      )}
+
+      {/* ── Sequel questions modal ── */}
+      {sequelStep !== "idle" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="glass-card-high rounded-[2rem] w-full max-w-md p-8 space-y-6 shadow-2xl ring-1 ring-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-label text-on-surface-variant/40 uppercase tracking-[0.2em] mb-1">Sequel</p>
+                <h2 className="font-headline font-semibold text-on-surface text-lg">Shape the next chapter</h2>
+              </div>
+              {sequelStep === "questions" && (
+                <button
+                  onClick={() => { setSequelStep("idle"); setSequelAnswers({}); }}
+                  className="p-2 rounded-xl text-on-surface-variant/40 hover:text-on-surface transition-colors"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>close</span>
+                </button>
+              )}
+            </div>
+
+            {sequelStep === "questions" && (
+              <div className="space-y-5">
+                {SEQUEL_QUESTIONS.map((q) => (
+                  <div key={q.id} className="space-y-2">
+                    <p className="text-sm font-label text-on-surface/80">{q.question}</p>
+                    <div className="space-y-1.5">
+                      {q.options.map((opt) => (
+                        <button
+                          key={opt}
+                          onClick={() => setSequelAnswers((a) => ({ ...a, [q.id]: opt }))}
+                          className={cn(
+                            "w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-label transition-all",
+                            sequelAnswers[q.id] === opt
+                              ? "bg-secondary/15 border border-secondary/30 text-secondary"
+                              : "glass-card border-0 text-on-surface-variant/60 hover:text-on-surface"
+                          )}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                <button
+                  onClick={submitSequel}
+                  disabled={SEQUEL_QUESTIONS.some((q) => !sequelAnswers[q.id])}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-secondary text-background font-label font-semibold text-sm hover:bg-secondary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>auto_stories</span>
+                  Generate Sequel
+                </button>
+              </div>
+            )}
+
+            {sequelStep === "submitting" && (
+              <div className="flex flex-col items-center gap-4 py-6">
+                <span className="material-symbols-outlined text-secondary animate-spin text-3xl" style={{ animationDuration: "1s" }}>progress_activity</span>
+                <p className="text-sm font-label text-on-surface-variant/60">Starting your sequel...</p>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* ── Error / unexpected state ── */}
